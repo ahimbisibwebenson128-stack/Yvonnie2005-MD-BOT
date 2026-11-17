@@ -1,6 +1,6 @@
 # YVONNIE2005 BOT
 
-A WhatsApp bot built with Baileys. This build contains **no closed-source code and no connection to the original authors' servers**. Everything runs on your own machine or server, and WhatsApp session credentials are stored locally. See [SECURITY-CHANGES.md](SECURITY-CHANGES.md) for details.
+A WhatsApp bot built with Baileys. This build contains **no closed-source code and no connection to the original authors' servers**. Everything runs on your own machine or server, and WhatsApp session credentials are stored locally. See [REPORT.md](REPORT.md) for the security and source audit notes.
 
 ## Requirements
 
@@ -32,7 +32,7 @@ npm install
 
 ### Pairing code through the web portal
 
-Deploy the bot on a persistent Node.js host such as Render, configure `PAIRING_API_KEY`, and open the public portal. Enter your WhatsApp number with its country code and the owner access key to generate a one-time code. Follow the on-screen WhatsApp instructions. See [DEPLOYMENT.md](DEPLOYMENT.md).
+Deploy the bot on a persistent Node.js host such as Render, configure `PAIRING_API_KEY`, and open the public portal. Wait for the portal to report that the bot is ready, then request exactly one code for the configured owner number. The pairing connection uses a standard Windows/Chrome browser identity because WhatsApp validates the companion platform display; the public portal remains branded YVONNIE2005. See [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ### QR code (terminal fallback)
 
@@ -46,10 +46,10 @@ Your credentials are stored in your local database (`./bot.db` by default). You 
 
 ## Owner / SUDO configuration
 
-No original author's owner number is preconfigured. Set `SUDO` to your own WhatsApp number, including country code, digits only. Multiple owner numbers can be comma-separated:
+The configured owner number for this deployment is `256746244963`. Keep `SUDO` set to that number, including country code and digits only. Multiple owner numbers can be comma-separated:
 
 ```bash
-SUDO=2567XXXXXXXX
+SUDO=256746244963
 ```
 
 An environment variable named `SUDO` overrides the default value in `config.js`.

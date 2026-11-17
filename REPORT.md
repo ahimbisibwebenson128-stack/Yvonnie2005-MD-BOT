@@ -30,7 +30,12 @@ Instagram, Pinterest and lrclib.net (the re-added features), Google Translate, G
 Instagram profile, Instagram stories (needs your cookies file), Pinterest search, lyrics, plus yt-dlp retry/timeout hardening. All open or local; none use the authors' servers.
 
 ## 5b. Rebrand
-Name/owner: YVONNIE2005. Default SUDO/owner: 9231118401. Author's GitHub/Telegram links removed. NOTICE.md and LICENSE keep the GPL-3.0 attribution to the original author.
+Name/owner: YVONNIE2005. Default SUDO/owner: 256746244963. Author's GitHub/Telegram links removed. NOTICE.md and LICENSE keep the GPL-3.0 attribution to the original author.
+
+## 5c. WhatsApp pairing reliability
+- Pairing uses the standard `Chrome (Windows)` companion platform display. The former product-name browser identity could be rejected by WhatsApp even though Baileys returned a code.
+- Pair-code requests are single-flight: repeated requests reuse the same in-flight result instead of overwriting Baileys pairing credentials.
+- Credentials are flushed before the expected 515 restart reconnect. A logged-out session is preserved for owner review rather than automatically deleted.
 
 ## 6. Not done / caveats
 - Not run against a real WhatsApp login or with yt-dlp installed; the install and login path needs a live test.

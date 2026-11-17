@@ -1,36 +1,37 @@
-# YVONNIE2005 BOT deployment notes
+# YVONNIE2005 BOT — deployment and pairing
 
-## Important architecture
+## Hosting layout
 
-The WhatsApp Baileys socket must run in a persistent Node.js service. Keep the bot process on Render (or another always-on Node host). Vercel is used as the public website/reverse proxy only; it forwards requests to the Render service through `vercel.json`. Do not try to run the WhatsApp socket as a Vercel serverless function.
+- Render runs the persistent WhatsApp socket and database-backed auth store.
+- Vercel is the public branded portal and reverse proxy only.
+- Keep the existing Render service and database. Do not delete session records to troubleshoot ordinary pairing failures.
 
-## Render environment variables
+## Required Render environment variables
 
-Set these in the existing Render service, then deploy the latest commit/archive:
+Keep the existing values unless explicitly changing them:
 
 - `SESSION=main`
 - `BOT_NAME=YVONNIE2005`
 - `BOT_INFO=YVONNIE2005;YVONNIE2005;default`
-- `SUDO=2567XXXXXXXX` (owner number, digits only)
-- `PAIRING_API_KEY=` a long private random secret. Use the same secret in the pairing portal's Owner access key field. Never publish it or put it in frontend source.
+- `SUDO=256746244963`
+- `PAIRING_API_KEY` = the existing private owner key (never commit it)
 - `USE_SERVER=true`
 
-Do not set `PAIR_NUMBER` for the new web flow. The owner enters the phone number in the portal and the API asks Baileys for a pairing code.
+Do not put the pairing key in GitHub, the ZIP, Vercel frontend source, or screenshots.
 
-## Pair WhatsApp
+## Pairing flow
 
-1. Open the Vercel site: `https://yvonnie2005-md-bot-2.vercel.app/`.
-2. Enter the WhatsApp number with country code, digits only (Uganda example format: `2567XXXXXXXX`; use the actual number).
-3. Enter the exact `PAIRING_API_KEY` configured in Render.
-4. Select **Generate pairing code**.
-5. In WhatsApp, open **Settings → Linked devices → Link a device → Link with phone number instead**, then enter the code.
-6. Keep the Render service running so the session can finish linking and persist.
+1. Open `https://yvonnie2005-md-bot-2.vercel.app/`.
+2. Wait until the portal says the bot is ready.
+3. Enter the configured owner number and the existing owner access key.
+4. Request exactly one code. The server caches that request and will not issue a competing code for the same session.
+5. In WhatsApp, choose Settings → Linked devices → Link a device → Link with phone number instead. Enter the code immediately.
+6. Wait for the Render service to reconnect and report connected.
 
-The endpoint returns no pairing code unless the owner key is correct. If the session is already linked, the user must intentionally clear that session before linking a different WhatsApp account.
+If WhatsApp immediately rejects the code, stop retrying. Repeated requests can invalidate pairing state or trigger WhatsApp limits. Check the Render logs and the Baileys version before another attempt.
 
-## Deployment order
+## Uploading a replacement ZIP
 
-1. Deploy this project to the existing Render service first and configure the environment variables above.
-2. Confirm the Render root URL shows the YVONNIE2005 pairing portal.
-3. Deploy the same repository to the existing Vercel project so the `vercel.json` rewrite becomes active.
-4. Open the Vercel domain and test the pairing flow.
+Upload `YVONNIE2005-MD-BOT-READY.zip` to the root of the GitHub `main` branch. The existing GitHub Actions workflow extracts it, validates JavaScript syntax, replaces project source, preserves private runtime data, removes the uploaded ZIP, and commits the installed source. Render is configured for automatic deploys from `main`; verify the new deployment before testing the portal.
+
+The ZIP intentionally excludes `.env` files, database files, WhatsApp auth/session data, `.git`, and `node_modules`.

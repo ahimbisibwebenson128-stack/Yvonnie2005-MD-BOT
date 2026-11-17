@@ -337,6 +337,10 @@ class WhatsAppBot {
     this.reconnectTimer = null;
     this.stableTimer = null;
     this.stopped = false;
+    this.connectionState = "starting";
+    this.qrReady = false;
+    this.pairingRequest = null;
+    this.pairingNumber = null;
 
     this.groupCache = groupCache;
     this.contactCache = contactCache;
@@ -355,17 +359,64 @@ class WhatsAppBot {
     if (number.length < 8 || number.length > 15) {
       throw new Error("Enter a valid WhatsApp number with country code, digits only (8–15 digits).");
     }
-    if (!this.sock || !this.authState) throw new Error("WhatsApp connection is still starting. Try again in a few seconds.");
-    if (this.authState.creds.registered) throw new Error("This WhatsApp session is already linked. Clear the saved session before pairing another number.");
-    if (this.isConnected) throw new Error("This WhatsApp session is already connected.");
-    try {
-      const code = await this.sock.requestPairingCode(number);
-      this.latestPairingCode = code;
-      this.latestPairingCodeAt = Date.now();
-      return code;
-    } catch (error) {
-      throw new Error(`WhatsApp could not create a pairing code: ${error.message}`);
+
+    const ownerNumber = String(process.env.SUDO || "").split(",")[0].replace(/\D/g, "");
+    if (ownerNumber && number !== ownerNumber) {
+      throw new Error("This connection portal is restricted to the configured owner WhatsApp number.");
     }
+
+    // Baileys keeps the active pairing code inside auth credentials. Never
+    // issue a second code while that state is being used to complete a link.
+    if (this.pairingRequest && this.pairingNumber === number) {
+      return this.pairingRequest;
+    }
+    if (this.pairingRequest && this.pairingNumber !== number) {
+      throw new Error("A pairing request is already active for this session. Complete it before requesting another code.");
+    }
+    if (!this.sock || !this.authState) {
+      throw new Error("WhatsApp connection is still starting. Wait a few seconds and try again.");
+    }
+    if (this.authState.creds.registered || this.isConnected) {
+      throw new Error("This WhatsApp session is already linked and connected.");
+    }
+    if (this.authState.creds.me?.id) {
+      throw new Error("A previous pairing attempt is still stored. Do not request another code; contact the owner to review the saved session safely.");
+    }
+    if (!this.qrReady) {
+      throw new Error("WhatsApp has not finished preparing the pairing request. Wait until the service is ready, then try once.");
+    }
+
+    this.pairingNumber = number;
+    this.pairingRequest = (async () => {
+      try {
+        const code = await this.sock.requestPairingCode(number);
+        this.latestPairingCode = code;
+        this.latestPairingCodeAt = Date.now();
+        logger.info({ session: this.sessionId }, "One-time WhatsApp pairing code requested.");
+        return code;
+      } catch (error) {
+        this.pairingRequest = null;
+        this.pairingNumber = null;
+        // Roll back only an unregistered provisional pairing identity when
+        // Baileys explicitly rejects the request. Never clear a linked session.
+        if (!this.authState.creds.registered) {
+          delete this.authState.creds.me;
+          delete this.authState.creds.pairingCode;
+          try { await this.authState.saveSession(); } catch (_) {}
+        }
+        throw new Error(`WhatsApp could not create a pairing code: ${error.message}`);
+      }
+    })();
+    return this.pairingRequest;
+  }
+
+  getPairingStatus() {
+    return {
+      state: this.isConnected ? "connected" : this.connectionState,
+      ready: Boolean(this.sock && this.authState && this.qrReady && !this.authState.creds.registered),
+      linked: Boolean(this.authState?.creds?.registered),
+      pairingInProgress: Boolean(this.pairingRequest),
+    };
   }
 
   // drop every listener and close the old socket so it can be garbage collected
@@ -429,6 +480,8 @@ class WhatsAppBot {
       if (!this.initialConnectMessageSent) {
         console.log(`- [${this.sessionId}] Initializing bot...`);
       }
+      this.connectionState = "starting";
+      this.qrReady = false;
       this.authState = new CustomAuthState(this.sessionId);
       let sessionLoaded = false;
       // Only try DB/backup, never file
@@ -445,11 +498,10 @@ class WhatsAppBot {
         );
       }
       if (!sessionLoaded) {
-        // First run: create brand-new credentials locally and log in via QR code or
-        // pairing code (set PAIR_NUMBER). Credentials are stored only in YOUR database.
+        // First run: create fresh credentials. Pairing codes are requested
+        // securely through the owner portal after Baileys emits its QR-ready event.
         console.log(
-          `- [${this.sessionId}] No saved session. Starting a fresh local login (QR code` +
-            `${process.env.PAIR_NUMBER ? " / pairing code" : ""}).`,
+          `- [${this.sessionId}] No saved session. Starting a fresh local login (QR or owner-portal pairing code).`,
         );
         await this.authState.saveCredentials(initAuthCreds());
       }
@@ -462,7 +514,9 @@ class WhatsAppBot {
         },
         ...(version ? { version } : {}),
         logger: logger.child({ session: this.sessionId }),
-        browser: ["YVONNIE2005", "Chrome", "1.0.0"],
+        // Windows/Chrome is the most compatible browser identity for
+        // WhatsApp phone-number pairing. The public portal remains branded.
+        browser: ["Windows", "Chrome", "10.0.0"],
         cachedGroupMetadata: (jid) => {
           const cached = this.groupCache.get(jid);
           if (cached) {
@@ -528,7 +582,9 @@ class WhatsAppBot {
     // Connection updates
     this.sock.ev.on("connection.update", async (update) => {
       const { connection, lastDisconnect, qr } = update;
+      if (connection) this.connectionState = connection;
       if (qr) {
+        this.qrReady = true;
         logger.info(
           { session: this.sessionId },
           `QR code received, generating terminal QR...`,
@@ -566,16 +622,27 @@ class WhatsAppBot {
         this.manager?.onSessionStateChange?.();
 
         if (statusCode === DisconnectReason.loggedOut) {
+          this.connectionState = "logged_out";
           sessionLogger.error(
-            `Logged out. Please delete session data and rescan QR.`,
+            `WhatsApp reported this session as logged out. Saved credentials are being preserved; no automatic deletion will occur.`,
           );
           console.log(
-            `❌ [${this.sessionId}] SESSION LOGGED OUT. Please rescan QR and update SESSION.`,
+            `❌ [${this.sessionId}] WhatsApp session is logged out. Saved auth data was preserved for owner review.`,
           );
+          try { await this.authState?.saveSession(); } catch (saveError) {
+            sessionLogger.error({ err: saveError }, "Could not flush preserved session data.");
+          }
           this._teardownSocket();
-          await CustomAuthState.deleteSessionById(this.sessionId);
         } else if (this.reconnectAttempts < this.maxReconnectAttempts) {
+          // 515 is expected after a successful phone-number pairing. Flush the
+          // new credentials before creating the replacement socket.
+          if (statusCode === DisconnectReason.restartRequired) {
+            try { await this.authState?.saveSession(); } catch (saveError) {
+              sessionLogger.error({ err: saveError }, "Could not flush pairing credentials before reconnect.");
+            }
+          }
           this._teardownSocket();
+          this.qrReady = false;
           this._scheduleReconnect(statusCode);
         } else {
           sessionLogger.error(
@@ -588,6 +655,10 @@ class WhatsAppBot {
           this._teardownSocket();
         }
       } else if (connection === "open") {
+        this.connectionState = "open";
+        this.qrReady = false;
+        this.pairingRequest = null;
+        this.pairingNumber = null;
         sessionLogger.info(
           { botId: this.sock.user?.id },
           `Connection established.`,

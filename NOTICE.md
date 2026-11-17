@@ -1,8 +1,5 @@
 # Notice
 
-Kamran Hasil Bot is owned and maintained by **Kamran Hasil** (owner / sudo number 9231118401).
+**YVONNIE2005 BOT** is the rebranded and maintained deployment for owner number **256746244963**.
 
-It is a modified version of Raganork-MD, originally written by Sourav K and released under the
-GNU General Public License v3.0. As the GPL requires, the `LICENSE` file and this attribution are
-kept, and this modified version is distributed under the same GPL-3.0 license. Changes: all
-closed-source / remote-server code removed, local login, local downloaders, rebranding.
+This project is a modified version of Raganork-MD, originally written by Sourav K and released under the GNU General Public License v3.0. The original license and required upstream attribution are retained. Project-specific branding and connection logic have been updated for YVONNIE2005.
