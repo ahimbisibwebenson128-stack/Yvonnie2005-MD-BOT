@@ -15,13 +15,18 @@ permissions:
 jobs:
   install-project:
     runs-on: ubuntu-latest
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Extract project files
+      - name: Find and extract project ZIP
+        shell: bash
         run: |
-          set -e
+          set -euo pipefail
+
           ZIP=""
 
           for candidate in \
@@ -36,23 +41,39 @@ jobs:
           done
 
           if [ -z "$ZIP" ]; then
-            echo "No matching ZIP found."
+            echo "ERROR: No supported project ZIP found."
+            ls -la
             exit 1
           fi
 
-          echo "Extracting $ZIP"
+          echo "Using ZIP: $ZIP"
+
           mkdir -p /tmp/yvonnie-project
           unzip -q "$ZIP" -d /tmp/yvonnie-project
+
           cp -a /tmp/yvonnie-project/. .
+
           rm -f YVONNIE2005-MD-BOT-READY*.zip
+
+      - name: Check JavaScript syntax
+        run: |
+          set -e
           node scripts/check-syntax.js
 
-      - name: Commit extracted project
+      - name: Commit extracted project files
+        shell: bash
         run: |
+          set -e
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+users.noreply.github.com"
-          git add -A
-          if ! git diff --cached --quiet; then
-            git commit -m "Install YVONNIE2005 bot project from ZIP"
-            git push origin HEAD:main
+
+          git add -A -- . ':(exclude).github/workflows/*'
+
+          if git diff --cached --quiet; then
+            echo "No project changes to commit."
+            exit 0
           fi
+
+          git commit -m "Install updated YVONNIE2005 bot project"
+          git push origin HEAD:main
