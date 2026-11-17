@@ -38,7 +38,7 @@ function tmpDir(name) {
   try {
     dir = require("./helpers").getTempSubdir(name);
   } catch (_) {
-    dir = path.join(os.tmpdir(), "kamran-bot", name);
+    dir = path.join(os.tmpdir(), "yvonnie2005-bot", name);
   }
   fs.mkdirSync(dir, { recursive: true });
   return dir;

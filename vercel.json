@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "https://yvonnie2005-md-bot.onrender.com/$1"
+    }
+  ]
+}

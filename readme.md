@@ -1,4 +1,4 @@
-# Kamran Hasil Bot
+# YVONNIE2005 BOT
 
 A WhatsApp bot built with Baileys. This build contains **no closed-source code and no connection to the original authors' servers**. Everything runs on your own machine or server, and WhatsApp session credentials are stored locally. See [SECURITY-CHANGES.md](SECURITY-CHANGES.md) for details.
 
@@ -23,22 +23,18 @@ sudo npm install -g pm2
 Clone the repository and install its dependencies:
 
 ```bash
-git clone https://github.com/kamran522/KAMRAN-MD-BOT.git
-cd KAMRAN-MD-BOT
+git clone https://github.com/ahimbisibwebenson128-stack/Yvonnie2005-MD-BOT.git
+cd Yvonnie2005-MD-BOT
 npm install
 ```
 
 ## Connect WhatsApp
 
-### Option A: Pairing code (recommended for servers)
+### Pairing code through the web portal
 
-```bash
-PAIR_NUMBER=923XXXXXXXXX node index.js
-```
+Deploy the bot on a persistent Node.js host such as Render, configure `PAIRING_API_KEY`, and open the public portal. Enter your WhatsApp number with its country code and the owner access key to generate a one-time code. Follow the on-screen WhatsApp instructions. See [DEPLOYMENT.md](DEPLOYMENT.md).
 
-Enter the pairing code printed in the terminal in WhatsApp under **Linked devices → Link with phone number**.
-
-### Option B: QR code
+### QR code (terminal fallback)
 
 ```bash
 node index.js
@@ -50,19 +46,13 @@ Your credentials are stored in your local database (`./bot.db` by default). You 
 
 ## Owner / SUDO configuration
 
-The default owner number is:
-
-```text
-923111008401
-```
-
-To use a different owner number, set `SUDO` in your environment or configuration. Multiple owner numbers can be comma-separated:
+No original author's owner number is preconfigured. Set `SUDO` to your own WhatsApp number, including country code, digits only. Multiple owner numbers can be comma-separated:
 
 ```bash
-SUDO=923111008401,923XXXXXXXXX
+SUDO=2567XXXXXXXX
 ```
 
-**Important:** An environment variable named `SUDO` overrides the default value in `config.js`. If you have set it in your hosting panel, update it there as well.
+An environment variable named `SUDO` overrides the default value in `config.js`.
 
 ## Run continuously with PM2
 
@@ -92,9 +82,9 @@ The following environment variables are supported:
 | Variable | Purpose |
 |---|---|
 | `SESSION` | Local session name(s); default is `main`. Multiple names can be comma-separated. |
-| `SUDO` | Owner number(s), including country code, comma-separated. Default: `923111008401`. |
+| `SUDO` | Your owner number(s), including country code, comma-separated. No owner number is preconfigured. |
 | `MODE` | Bot mode: `private` (default) or `public`. |
-| `PAIR_NUMBER` | WhatsApp number used for pairing-code login. |
+| `PAIRING_API_KEY` | Private owner key protecting the web pairing-code endpoint. Required for the portal. |
 | `DATABASE_URL` | Database connection; defaults to local SQLite at `./bot.db`. |
 | `YTDLP_PATH` | Optional path to the yt-dlp executable. |
 | `YTDLP_ARGS` | Optional extra arguments passed to yt-dlp. |
@@ -122,7 +112,7 @@ npm run audit:hosts
 - Install Node.js 20+ and make sure Node.js and npm are available in your terminal.
 - Install FFmpeg and yt-dlp and add them to your PATH (for example, using `winget install yt-dlp ffmpeg`).
 - Start the bot with `npm start` or `node index.js`.
-- For PM2, use `pm2 start ecosystem.config.js`. If an old broken PM2 process exists, remove it with `pm2 delete kamran-hasil-bot` before starting again.
+- For PM2, use `pm2 start ecosystem.config.js`. If an old broken PM2 process exists, remove it with `pm2 delete yvonnie2005-bot` before starting again.
 
 ## License
 

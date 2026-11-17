@@ -6,9 +6,9 @@ function convertToBool(text, fault = "true", fault2 = "on") {
   return text === fault || text === fault2;
 }
 
-const isVPS = !(__dirname.startsWith("/kamran") || __dirname.startsWith("/skl"));
+const isVPS = !(__dirname.startsWith("/yvonnie2005") || __dirname.startsWith("/skl"));
 const isHeroku = __dirname.startsWith("/skl");
-const isKoyeb = __dirname.startsWith("/kamran");
+const isKoyeb = __dirname.startsWith("/yvonnie2005");
 const isRailway = __dirname.startsWith("/railway");
 
 const logger = P({ level: process.env.LOG_LEVEL || "silent" });
@@ -236,14 +236,14 @@ const baseConfig = {
   PMB: process.env.PMB || "_Personal messages not allowed, BLOCKED!_",
   READ_COMMAND: convertToBool(process.env.READ_COMMAND) || true,
   RG: process.env.RG || "",
-  BOT_INFO: process.env.BOT_INFO || "Kamran Hasil;Kamran Hasil;default",
+  BOT_INFO: process.env.BOT_INFO || "YVONNIE2005;YVONNIE2005;default",
   RBG_KEY: process.env.RBG_KEY || "",
   ALLOWED: process.env.ALLOWED || "91,94,2",
   NOT_ALLOWED: process.env.NOT_ALLOWED || "852",
   CHATBOT: process.env.CHATBOT || "off",
   HANDLERS: process.env.HANDLERS || ".,",
-  STICKER_DATA: process.env.STICKER_DATA || "Kamran Hasil",
-  BOT_NAME: process.env.BOT_NAME || "Kamran Hasil",
+  STICKER_DATA: process.env.STICKER_DATA || "YVONNIE2005",
+  BOT_NAME: process.env.BOT_NAME || "YVONNIE2005",
   AUDIO_DATA:
     process.env.AUDIO_DATA === undefined || process.env.AUDIO_DATA === "private"
       ? "default"
@@ -254,7 +254,7 @@ const baseConfig = {
   WARN: process.env.WARN || "4",
   ANTILINK_WARN: process.env.ANTILINK_WARN || "",
   ANTI_DELETE: convertToBool(process.env.ANTI_DELETE) || false,
-  SUDO: process.env.SUDO || "923111008401",
+  SUDO: process.env.SUDO || "",
   LANGUAGE: process.env.LANGUAGE || "english",
   AUTO_UPDATE: false, // remote auto-update removed in this build
   SUPPORT_GROUP: process.env.SUPPORT_GROUP || "",

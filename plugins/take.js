@@ -51,7 +51,7 @@ Module(
         match[1] !== ""
           ? match[1]
           : config.AUDIO_DATA === "default"
-          ? "Audio title here;Kamran Hasil - Artist;https://i.ibb.co/s98DyMMq/NL-1.png"
+          ? "Audio title here;YVONNIE2005 - Artist;https://i.ibb.co/s98DyMMq/NL-1.png"
           : config.AUDIO_DATA;
       if (config.AUDIO_DATA == "default") {
         await m.sendReply(
@@ -70,7 +70,7 @@ Module(
           q,
           spl[0],
           spl[1] ? spl[1] : config.AUDIO_DATA.split(";")[1],
-          "Kamran Hasil",
+          "YVONNIE2005",
           image
         );
       await m.client.sendMessage(

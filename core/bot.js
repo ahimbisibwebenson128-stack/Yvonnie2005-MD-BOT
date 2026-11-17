@@ -350,6 +350,24 @@ class WhatsAppBot {
     });
   }
 
+  async requestPairingCode(rawNumber) {
+    const number = String(rawNumber || "").replace(/\D/g, "");
+    if (number.length < 8 || number.length > 15) {
+      throw new Error("Enter a valid WhatsApp number with country code, digits only (8–15 digits).");
+    }
+    if (!this.sock || !this.authState) throw new Error("WhatsApp connection is still starting. Try again in a few seconds.");
+    if (this.authState.creds.registered) throw new Error("This WhatsApp session is already linked. Clear the saved session before pairing another number.");
+    if (this.isConnected) throw new Error("This WhatsApp session is already connected.");
+    try {
+      const code = await this.sock.requestPairingCode(number);
+      this.latestPairingCode = code;
+      this.latestPairingCodeAt = Date.now();
+      return code;
+    } catch (error) {
+      throw new Error(`WhatsApp could not create a pairing code: ${error.message}`);
+    }
+  }
+
   // drop every listener and close the old socket so it can be garbage collected
   _teardownSocket() {
     const sock = this.sock;
@@ -444,7 +462,7 @@ class WhatsAppBot {
         },
         ...(version ? { version } : {}),
         logger: logger.child({ session: this.sessionId }),
-        browser: ["Kamran Hasil", "Chrome", "1.0.0"],
+        browser: ["YVONNIE2005", "Chrome", "1.0.0"],
         cachedGroupMetadata: (jid) => {
           const cached = this.groupCache.get(jid);
           if (cached) {
@@ -492,29 +510,7 @@ class WhatsAppBot {
       });
       this.setupEventHandlers();
 
-      // Optional pairing-code login (no QR): PAIR_NUMBER=923XXXXXXXXX
-      const pairNumber = (process.env.PAIR_NUMBER || "").replace(/\D/g, "");
-      if (pairNumber && !this.authState.creds.registered && !this._pairingRequested) {
-        this._pairingRequested = true;
-        const sock = this.sock;
-        const onUpdate = async (u) => {
-          if (!u.qr) return;
-          sock.ev.off("connection.update", onUpdate);
-          try {
-            const code = await sock.requestPairingCode(pairNumber);
-            console.log("\n==============================================");
-            console.log(`  [${this.sessionId}] PAIRING CODE:  ${code}`);
-            console.log("==============================================");
-            console.log("WhatsApp > Settings > Linked devices > Link a device >");
-            console.log("'Link with phone number instead' > enter the code above.");
-            console.log("Do NOT share this code with anyone.\n");
-          } catch (e) {
-            this._pairingRequested = false;
-            console.error("Could not request a pairing code:", e.message);
-          }
-        };
-        sock.ev.on("connection.update", onUpdate);
-      }
+
     } catch (error) {
       logger.error(
         { session: this.sessionId, err: error },
@@ -648,7 +644,7 @@ class WhatsAppBot {
               const readMore = String.fromCharCode(8206).repeat(4001);
               const check = "✅";
               const cross = "❌";
-              const started = `*_Kamran Hasil Bot started!_*${readMore}\n\n_Mode         :_ *${capitalizeFirstLetter(
+              const started = `*_YVONNIE2005 BOT started!_*${readMore}\n\n_Mode         :_ *${capitalizeFirstLetter(
                 config.MODE,
               )}*\n_Language :_ *${capitalizeFirstLetter(
                 config.LANGUAGE,
@@ -866,7 +862,7 @@ class WhatsAppBot {
               newsletterName: `WhatsApp`,
               contentType: 1,
               timestamp: new Date().toISOString(),
-              senderName: "Kamran Hasil",
+              senderName: "YVONNIE2005",
               content: "Album Message",
               priority: "high",
               status: "sent",

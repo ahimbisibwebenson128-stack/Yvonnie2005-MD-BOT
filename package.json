@@ -1,7 +1,7 @@
 {
-  "name": "kamran-MD-bot",
+  "name": "yvonnie2005-md-bot",
   "version": "7.0.0",
-  "description": "A multi functional WhatsApp bot by Kamran Hasil.",
+  "description": "A multi functional WhatsApp bot by YVONNIE2005.",
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
@@ -15,7 +15,7 @@
     "bot",
     "baileys"
   ],
-  "author": "Kamran Hasil",
+  "author": "YVONNIE2005",
   "license": "GPL-3.0-or-later",
   "dependencies": {
     "@vitalets/google-translate-api": "^9.2.1",

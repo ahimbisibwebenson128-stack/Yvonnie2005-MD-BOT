@@ -448,7 +448,7 @@ _Instead of using \`.setinfo\`, use these individual commands:_
 
 *Bot Name:*
 - Command: \`.setname <name>\`
-- Example: \`.setname Kamran Hasil\`
+- Example: \`.setname YVONNIE2005\`
 - Description: _Sets the bot's display name_
 
 *Bot Owner:*
@@ -483,7 +483,7 @@ Module(
   async (message, match) => {
     const name = match[1]?.trim();
     if (!name)
-      return await message.sendReply("_Provide a name: .setname Kamran Hasil_");
+      return await message.sendReply("_Provide a name: .setname YVONNIE2005_");
     const parts = config.BOT_INFO.split(";");
     parts[0] = name;
     await setVar("BOT_INFO", parts.join(";"));

@@ -79,7 +79,7 @@ if (process.env.TEMP_DIR) {
   TEMP_DIR = process.env.TEMP_DIR;
   os.tmpdir = () => path.join(__dirname, "..", TEMP_DIR);
 } else {
-  TEMP_DIR = path.join(os.tmpdir(), "kamran-bot");
+  TEMP_DIR = path.join(os.tmpdir(), "yvonnie2005-bot");
 }
 
 function ensureTempDir() {
@@ -210,7 +210,7 @@ async function pingHostname(url) {
   try {
     const response = await fetch(url, {
       signal: AbortSignal.timeout(8000),
-      headers: { "User-Agent": "KamranHasil-KickBot/1.0" },
+      headers: { "User-Agent": "YVONNIE2005-KickBot/1.0" },
     });
     if (response.ok) {
       return true;

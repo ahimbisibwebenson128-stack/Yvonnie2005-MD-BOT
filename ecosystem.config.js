@@ -3,7 +3,7 @@
 module.exports = {
   apps: [
     {
-      name: "kamran-MD-bot",
+      name: "yvonnie2005-md-bot",
       script: "index.js",
       node_args: `--max-old-space-size=${parseInt(process.env.MAX_HEAP, 10) || 512}`,
       autorestart: true,

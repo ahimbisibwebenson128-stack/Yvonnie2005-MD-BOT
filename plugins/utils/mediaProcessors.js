@@ -19,7 +19,7 @@ async function addExif(media, metadata) {
 
   const img = new webp.Image();
   const json = {
-    "sticker-pack-id": `kamran-hasil/bot`,
+    "sticker-pack-id": `yvonnie2005/bot`,
     "sticker-pack-name": metadata.packname,
     "sticker-pack-publisher": metadata.author,
     emojis: metadata.categories || [""],
