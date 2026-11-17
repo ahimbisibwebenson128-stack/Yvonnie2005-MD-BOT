@@ -15,65 +15,37 @@ permissions:
 jobs:
   install-project:
     runs-on: ubuntu-latest
-
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Find and extract project ZIP
-        shell: bash
+      - name: Extract project ZIP
         run: |
-          set -euo pipefail
-
-          ZIP=""
-
-          for candidate in \
-            "YVONNIE2005-MD-BOT-READY(3).zip" \
-            "YVONNIE2005-MD-BOT-READY(2).zip" \
-            "YVONNIE2005-MD-BOT-READY(1).zip" \
-            "YVONNIE2005-MD-BOT-READY.zip"; do
-            if [ -f "$candidate" ]; then
-              ZIP="$candidate"
-              break
-            fi
-          done
-
+          set -e
+          ZIP=$(find . -maxdepth 1 -name 'YVONNIE2005-MD-BOT-READY*.zip' | sort -V | tail -n 1)
           if [ -z "$ZIP" ]; then
-            echo "ERROR: No supported project ZIP found."
-            ls -la
+            echo "No project ZIP found"
             exit 1
           fi
-
-          echo "Using ZIP: $ZIP"
-
-          mkdir -p /tmp/yvonnie-project
-          unzip -q "$ZIP" -d /tmp/yvonnie-project
-
-          cp -a /tmp/yvonnie-project/. .
-
+          mkdir -p /tmp/yvonnie
+          unzip -q "$ZIP" -d /tmp/yvonnie
+          cp -a /tmp/yvonnie/. .
           rm -f YVONNIE2005-MD-BOT-READY*.zip
 
       - name: Check JavaScript syntax
-        run: |
-          set -e
-          node scripts/check-syntax.js
+        run: node scripts/check-syntax.js
 
-      - name: Commit extracted project files
-        shell: bash
+      - name: Commit project files
         run: |
-          set -e
-
           git config user.name "github-actions[bot]"
           git config user.email "41898282+users.noreply.github.com"
-
-          git add -A -- . ':(exclude).github/workflows/*'
-
+          git add -A
+          git reset -- .github/workflows/
           if git diff --cached --quiet; then
-            echo "No project changes to commit."
+            echo "No project changes"
             exit 0
           fi
-
           git commit -m "Install updated YVONNIE2005 bot project"
           git push origin HEAD:main
