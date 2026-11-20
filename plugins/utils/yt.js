@@ -520,25 +520,9 @@ async function convertM4aToMp3(m4aPath, meta = null) {
  * @returns {Promise<Array>}
  */
 async function searchYoutube(query, limit = 10) {
-  if (!youtube) {
-    throw new Error("youtube-sr is not installed");
-  }
-  const results = await youtube.search(query, {
-    limit,
-    type: "video",
-  });
-  return results.map((video) => ({
-    title: video.title,
-    url: video.url,
-    duration: video.durationFormatted,
-    thumbnail: video.thumbnail?.url,
-    views: video.views,
-    uploadedAt: video.uploadedAt,
-    channel: {
-      name: video.channel?.name,
-      url: video.channel?.url,
-    },
-  }));
+  // Use the same local yt-dlp binary as downloads. This avoids youtube-sr's
+  // oversized response headers that caused UND_ERR_HEADERS_OVERFLOW on Render.
+  return await priv.ytSearch(query, limit);
 }
 
 module.exports = {

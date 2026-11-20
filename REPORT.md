@@ -37,7 +37,13 @@ Name/owner: YVONNIE2005. Default SUDO/owner: 256746244963. Author's GitHub/Teleg
 - Pair-code requests are single-flight: repeated requests reuse the same in-flight result instead of overwriting Baileys pairing credentials.
 - Credentials are flushed before the expected 515 restart reconnect. A logged-out session is preserved for owner review rather than automatically deleted.
 
-## 6. Not done / caveats
-- Not run against a real WhatsApp login or with yt-dlp installed; the install and login path needs a live test.
+## 6. Owner portal and dashboard
+- Replaced the basic connection page with a responsive emerald/black/gold glassmorphism portal using the supplied Emerald Crown Spider mascot.
+- Added a separate `/admin` owner control centre with server-side `PAIRING_API_KEY` verification, live connection status, readiness, refresh, lock/logout, and links to the actual Render dashboard.
+- Added `/mascot.png` local asset serving and international phone-number validation before pairing.
+- The dashboard intentionally does not show fake controls, simulated logs, or pretend command buttons.
+
+## 7. Not done / caveats
+- Not run against a real WhatsApp login or with yt-dlp installed in this build environment. JavaScript syntax and static deployment checks pass, but live WhatsApp command execution and YouTube download/search require a deployed service, valid WhatsApp session, and working yt-dlp/network access. No one can honestly certify every command without testing those external dependencies.
 - Postgres connections use `rejectUnauthorized:false` (original behaviour, weakens TLS verification). SQLite default is unaffected.
 - Branding left alone: name, "Sourav K" credit, sticker-pack links to github.com/souravkl11, t.me/raganork_in. GPL-3.0 requires keeping the license and copyright notices.

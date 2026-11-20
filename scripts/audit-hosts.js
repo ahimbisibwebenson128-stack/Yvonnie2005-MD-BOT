@@ -8,6 +8,7 @@ const path = require("path");
 
 const SKIP = new Set(["node_modules", ".git", "temp", "lang"]);
 const BAD = /(raganork_in|rgnk\.site|raganork\.site|raganork-api|raganork-network|raganorkbot|koyeb\.app|onrender\.com|vercel\.app)/i;
+const APPROVED_HOSTS = new Set(["yvonnie2005-md-bot.onrender.com"]);
 const hosts = new Map();
 
 function walk(dir) {
@@ -30,7 +31,7 @@ walk(process.cwd());
 
 let bad = 0;
 for (const [h, files] of [...hosts.entries()].sort()) {
-  const flag = BAD.test(h) ? "  <-- AUTHOR/PAAS HOST" : "";
+  const flag = BAD.test(h) && !APPROVED_HOSTS.has(h) ? "  <-- AUTHOR/PAAS HOST" : "";
   if (flag) bad++;
   console.log(h.padEnd(40), [...files].slice(0, 3).join(", ") + (files.size > 3 ? ", ..." : ""), flag);
 }

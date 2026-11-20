@@ -626,7 +626,7 @@ Module(
       }
       if (match[1] !== "on" && match[1] !== "off") {
         var status = jids.includes(message.jid) ? "on" : "off";
-        var { subject } = await message.client.groupMetadata(message.jid);
+        var subject = message.groupName || message.subject || message.jid;
         return await message.sendReply(
           `_Antibot menu of ${subject}_` +
             "\n\n_Antibot is currently turned *" +
@@ -669,7 +669,7 @@ Module(
       }
       if (match[1] !== "on" && match[1] !== "off") {
         var status = jids.includes(message.jid) ? "on" : "off";
-        var { subject } = await message.client.groupMetadata(message.jid);
+        var subject = message.groupName || message.subject || message.jid;
         return await message.sendReply(
           `_Anti spam menu of ${subject}_` +
             "\n\n_Antispam is currently turned *" +
@@ -710,7 +710,7 @@ Module(
       }
       if (match[1] !== "on" && match[1] !== "off") {
         var status = jids.includes(message.jid) ? "on" : "off";
-        var { subject } = await message.client.groupMetadata(message.jid);
+        var subject = message.groupName || message.subject || message.jid;
         return await message.sendReply(
           `_Promote|demote alert message menu of ${subject}_` +
             "\n\n_PDM alert is currently turned *" +
@@ -747,7 +747,7 @@ Module(
     }
     if (match[1] !== "on" && match[1] !== "off") {
       var status = jids.includes(message.jid) ? "on" : "off";
-      var { subject } = await message.client.groupMetadata(message.jid);
+      var subject = message.groupName || message.subject || message.jid;
       return await message.sendReply(
         `_Anti demote menu of ${subject}_` +
           "\n\n_This feature is currently turned *" +
@@ -783,7 +783,7 @@ Module(
     }
     if (match[1] !== "on" && match[1] !== "off") {
       var status = jids.includes(message.jid) ? "on" : "off";
-      var { subject } = await message.client.groupMetadata(message.jid);
+      var subject = message.groupName || message.subject || message.jid;
       return await message.sendReply(
         `_Anti promote menu of ${subject}_` +
           "\n\n_This feature is currently turned *" +
@@ -1042,7 +1042,7 @@ Module(
             };
           }
 
-          const { subject } = await message.client.groupMetadata(message.jid);
+          const subject = message.groupName || message.subject || message.jid;
 
           return await message.sendReply(
             `🛡️ *Antilink Status - ${subject}*\n\n` +
@@ -1127,7 +1127,7 @@ Module(
           jids.includes(message.jid) || antiwordWarn.includes(message.jid)
             ? "on"
             : "off";
-        var { subject } = await message.client.groupMetadata(message.jid);
+        var subject = message.groupName || message.subject || message.jid;
         return await message.sendReply(
           `_Antiword menu of ${subject}_` +
             "\n\n_Antiword is currently turned *" +

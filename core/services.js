@@ -141,6 +141,25 @@ async function apiCall() {
  * Metadata + available qualities. `isRestricted: true` tells plugins/utils/yt.js to download
  * through ytDownloadToFile() (local yt-dlp + ffmpeg) instead of raw CDN URLs.
  */
+async function ytSearch(query, limit = 10) {
+  const q = String(query || "").trim();
+  if (!q) return [];
+  const count = Math.max(1, Math.min(20, Number(limit) || 10));
+  const { stdout } = await ytdlp(["--dump-single-json", "--flat-playlist", `ytsearch${count}:${q}`], { timeout: 90000 });
+  const data = JSON.parse(stdout);
+  const entries = Array.isArray(data.entries) ? data.entries : [];
+  return entries.filter(Boolean).map((v) => ({
+    id: v.id,
+    title: v.title || "Untitled video",
+    url: v.webpage_url || v.url || (v.id ? `https://www.youtube.com/watch?v=${v.id}` : ""),
+    duration: v.duration_string || (Number.isFinite(v.duration) ? `${Math.floor(v.duration / 60)}:${String(Math.floor(v.duration % 60)).padStart(2, "0")}` : "N/A"),
+    thumbnail: v.thumbnail || (Array.isArray(v.thumbnails) ? v.thumbnails[v.thumbnails.length - 1]?.url : null),
+    views: v.view_count || 0,
+    uploadedAt: v.upload_date || "",
+    channel: { name: v.channel || v.uploader || "Unknown", url: v.channel_url || v.uploader_url || "" },
+  })).filter((v) => v.url);
+}
+
 async function ytInfo(input) {
   const url = normalizeYoutube(input);
   const { stdout } = await ytdlp(["-J", url], { timeout: 120000 });
@@ -548,6 +567,7 @@ module.exports = {
   createAnnouncementFeed,
   apiCall,
   ytInfo,
+  ytSearch,
   ytDownloadToFile,
   instagram,
   instagramStory,

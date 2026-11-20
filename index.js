@@ -86,10 +86,26 @@ async function main() {
     };
     const server = http.createServer(async (req, res) => {
       const pathname = new URL(req.url, `http://${req.headers.host || "localhost"}`).pathname;
+      // Serve the public pairing portal, owner control centre, and mascot from local files.
+      if (req.method === "GET" && (pathname === "/" || pathname === "/admin" || pathname === "/admin/" || pathname === "/mascot.png")) {
+        const asset = pathname === "/mascot.png" ? "mascot.png" : pathname.startsWith("/admin") ? "admin.html" : "index.html";
+        const file = path.join(__dirname, "public", asset);
+        if (!fs.existsSync(file)) return sendJson(res, 503, { error: "Portal asset is missing." });
+        res.writeHead(200, { "Content-Type": asset.endsWith(".png") ? "image/png" : "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" });
+        return res.end(fs.readFileSync(file));
+      }
       if (req.method === "GET" && pathname === "/health") {
         res.writeHead(200, { "Content-Type": "application/json" });
         const bot = botManager.getBot(SESSION[0]);
         return res.end(JSON.stringify({ status: "ok", name: "YVONNIE2005 BOT", connected: botManager.connectedBots().length > 0, pairing: bot?.getPairingStatus?.() || { state: "starting", ready: false } }));
+      }
+      if (req.method === "POST" && pathname === "/api/admin/verify") {
+        const expected = process.env.PAIRING_API_KEY || "";
+        const supplied = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+        const a = Buffer.from(supplied);
+        const b = Buffer.from(expected);
+        const valid = Boolean(expected && supplied && a.length === b.length && crypto.timingSafeEqual(a, b));
+        return sendJson(res, valid ? 200 : 401, valid ? { ok: true } : { error: "Owner key is incorrect or not configured." });
       }
       if (req.method === "GET" && pathname === "/api/status") {
         const bot = botManager.getBot(SESSION[0]);
@@ -109,10 +125,12 @@ async function main() {
         req.on("end", async () => {
           try {
             const body = JSON.parse(raw || "{}");
+            const number = String(body.number || "").replace(/\D/g, "");
+            if (!/^\d{10,15}$/.test(number)) return sendJson(res, 400, { error: "Enter a valid international WhatsApp number (10–15 digits, country code included)." });
             const sessionId = SESSION[0];
             const bot = botManager.getBot(sessionId);
             if (!bot) return sendJson(res, 503, { error: "Bot session is not initialized. Check the service logs and SESSION setting." });
-            const code = await bot.requestPairingCode(body.number);
+            const code = await bot.requestPairingCode(number);
             return sendJson(res, 200, { code, session: sessionId });
           } catch (error) { return sendJson(res, 400, { error: error.message }); }
         });

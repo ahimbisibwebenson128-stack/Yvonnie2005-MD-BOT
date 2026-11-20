@@ -21,7 +21,7 @@ Do not put the pairing key in GitHub, the ZIP, Vercel frontend source, or screen
 
 ## Pairing flow
 
-1. Open `https://yvonnie2005-md-bot-2.vercel.app/`.
+1. Open `https://yvonnie2005-md-bot.vercel.app/`.
 2. Wait until the portal says the bot is ready.
 3. Enter the configured owner number and the existing owner access key.
 4. Request exactly one code. The server caches that request and will not issue a competing code for the same session.
@@ -32,6 +32,8 @@ If WhatsApp immediately rejects the code, stop retrying. Repeated requests can i
 
 ## Uploading a replacement ZIP
 
-Upload `YVONNIE2005-MD-BOT-READY.zip` to the root of the GitHub `main` branch. The existing GitHub Actions workflow extracts it, validates JavaScript syntax, replaces project source, preserves private runtime data, removes the uploaded ZIP, and commits the installed source. Render is configured for automatic deploys from `main`; verify the new deployment before testing the portal.
+Upload the contents of this release ZIP to the root of the GitHub `main` branch, or add the ZIP as `YVONNIE2005-MD-BOT-READY.zip` so the included installer workflow can unpack it. Do not upload the ZIP under a nested folder. The existing GitHub Actions workflow extracts it, validates JavaScript syntax, replaces project source, preserves private runtime data, removes the uploaded ZIP, and commits the installed source. Render is configured for automatic deploys from `main`; verify the new deployment before testing the portal.
+
+The public connection portal is `/`; the separate owner control centre is `/admin` and verifies `PAIRING_API_KEY` server-side. The owner dashboard reports live connection state and links to the actual Render service; it does not pretend that unsupported controls or logs exist.
 
 The ZIP intentionally excludes `.env` files, database files, WhatsApp auth/session data, `.git`, and `node_modules`.
