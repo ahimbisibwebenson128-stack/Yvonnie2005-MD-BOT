@@ -325,10 +325,11 @@ Module(
       }
     } catch (error) {
       console.error("Video download error:", error);
+      const detail = String(error?.message || "Unknown download error").replace(/[\r\n]+/g, " ").slice(0, 180);
       if (downloadMsg) {
-        await message.edit("_Download failed!_", message.jid, downloadMsg.key);
+        await message.edit(`_Download failed: ${detail}_`, message.jid, downloadMsg.key);
       } else {
-        await message.sendReply("_Download failed. Please try again._");
+        await message.sendReply(`_Download failed: ${detail}_`);
       }
 
       if (videoPath && fs.existsSync(videoPath)) {
@@ -531,10 +532,11 @@ Module(
       }
     } catch (error) {
       console.error("Play error:", error);
+      const detail = String(error?.message || "Unknown download error").replace(/[\r\n]+/g, " ").slice(0, 180);
       if (downloadMsg) {
-        await message.edit("_Download failed!_", message.jid, downloadMsg.key);
+        await message.edit(`_Download failed: ${detail}_`, message.jid, downloadMsg.key);
       } else {
-        await message.sendReply("_Download failed. Please try again._");
+        await message.sendReply(`_Download failed: ${detail}_`);
       }
 
       if (audioPath && fs.existsSync(audioPath)) {

@@ -4,15 +4,20 @@ const axios = require("axios");
 const fromMe = config.MODE !== "public";
 const { setVar } = require("./manage");
 const fs = require("fs");
+const Jimp = require("jimp");
 
 const API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/";
-const MODEL = "gemma-4-31b-it";
+const MODEL = "gemini-3.8-flash";
 const models = [MODEL];
 const chatbotStates = new Map();
 const chatContexts = new Map();
 
 let globalSystemPrompt =
   "You are a helpful AI assistant named YVONNIE2005. Be concise, friendly, and informative.";
+
+function getSystemPrompt() {
+  return config.CHATBOT_SYSTEM_PROMPT || globalSystemPrompt;
+}
 
 async function initChatbotData() {
   try {
@@ -58,14 +63,11 @@ async function saveSystemPrompt(prompt) {
 
 async function imageToGenerativePart(imageBuffer) {
   try {
-    const data = imageBuffer.toString("base64");
-
-    return {
-      inlineData: {
-        mimeType: "image/jpeg",
-        data: data,
-      },
-    };
+    // Normalize supported WhatsApp image formats to JPEG. The original code
+    // labelled every buffer as JPEG, even when the bytes were PNG or WebP.
+    const image = await Jimp.read(imageBuffer);
+    const jpegBuffer = await image.quality(85).getBufferAsync(Jimp.MIME_JPEG);
+    return { inlineData: { mimeType: "image/jpeg", data: jpegBuffer.toString("base64") } };
   } catch (error) {
     console.error("Error processing image:", error.message);
     return null;
@@ -105,18 +107,30 @@ function extractResponseText(data) {
   return null;
 }
 
-async function callGemmaAPI(apiKey, contents, systemText = globalSystemPrompt) {
-  const apiUrl = `${API_BASE_URL}${MODEL}:generateContent?key=${apiKey}`;
+async function postWithRetry(url, payload, options, retries = 2) {
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await axios.post(url, payload, options);
+    } catch (error) {
+      lastError = error;
+      const status = error.response?.status;
+      const retryable = !status || [408, 429, 500, 502, 503, 504].includes(status);
+      if (!retryable || attempt === retries) break;
+      await new Promise(resolve => setTimeout(resolve, 1200 * (attempt + 1)));
+    }
+  }
+  throw lastError;
+}
+
+async function callGeminiAPI(apiKey, contents, systemText = globalSystemPrompt, model = MODEL, includeSearch = true) {
+  const apiUrl = `${API_BASE_URL}${model}:generateContent?key=${apiKey}`;
   const payload = {
     systemInstruction: {
       parts: [{ text: systemText }],
     },
     contents: contents,
-    tools: [
-      {
-        googleSearch: {},
-      },
-    ],
+    ...(includeSearch ? { tools: [{ googleSearch: {} }] } : {}),
     generationConfig: {
       maxOutputTokens: 2048,
       temperature: 0.7,
@@ -132,9 +146,9 @@ async function callGemmaAPI(apiKey, contents, systemText = globalSystemPrompt) {
   };
 
   try {
-    return await axios.post(apiUrl, payload, {
+    return await postWithRetry(apiUrl, payload, {
       headers: requestHeaders,
-      timeout: 30000,
+      timeout: 45000,
     });
   } catch (err) {
     if (
@@ -143,7 +157,7 @@ async function callGemmaAPI(apiKey, contents, systemText = globalSystemPrompt) {
       (payload.tools || payload.generationConfig?.thinkingConfig)
     ) {
       console.warn(
-        "Gemma request failed with 400, retrying without optional tools/thinkingConfig:",
+        "Gemini request failed with 400, retrying without optional tools/thinkingConfig:",
         err.response.data?.error?.message || err.message,
       );
       const fallbackPayload = {
@@ -154,12 +168,27 @@ async function callGemmaAPI(apiKey, contents, systemText = globalSystemPrompt) {
           temperature: 0.7,
         },
       };
-      return await axios.post(apiUrl, fallbackPayload, {
+      return await postWithRetry(apiUrl, fallbackPayload, {
         headers: requestHeaders,
-        timeout: 30000,
+        timeout: 45000,
       });
     }
     throw err;
+  }
+}
+
+async function callAIAPI(apiKey, contents, systemText = globalSystemPrompt, hasImage = false) {
+  // Gemini 3.8 Flash is the primary multimodal model. Gemini 3.5 Flash-Lite
+  // is used as a recovery model for transient provider failures.
+  const primary = MODEL;
+  try {
+    return await callGeminiAPI(apiKey, contents, systemText, primary, !hasImage);
+  } catch (error) {
+    const status = error.response?.status;
+    const transient = !status || status === 408 || status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
+    if (!transient || primary === "gemini-3.5-flash-lite") throw error;
+    console.warn("Primary AI model unavailable; retrying with Gemini Flash-Lite:", error.message);
+    return await callGeminiAPI(apiKey, contents, systemText, "gemini-3.5-flash-lite", false);
   }
 }
 
@@ -191,9 +220,8 @@ async function getAIResponse(message, chatJid, imageBuffer = null) {
     const currentParts = [{ text: message }];
     if (imageBuffer) {
       const imagePart = await imageToGenerativePart(imageBuffer);
-      if (imagePart) {
-        currentParts.push(imagePart);
-      }
+      if (!imagePart) return "_❌ I could not process that image format. Please send a JPG or PNG image._";
+      currentParts.push(imagePart);
     }
 
     contents.push({
@@ -201,7 +229,7 @@ async function getAIResponse(message, chatJid, imageBuffer = null) {
       parts: currentParts,
     });
 
-    const response = await callGemmaAPI(apiKey, contents, globalSystemPrompt);
+    const response = await callAIAPI(apiKey, contents, getSystemPrompt(), Boolean(imageBuffer));
     const aiResponse = extractResponseText(response.data);
     if (aiResponse) {
       if (!chatContexts.has(chatJid)) {
@@ -244,20 +272,15 @@ async function getAIResponse(message, chatJid, imageBuffer = null) {
   }
 }
 
+function isEnabledValue(value) {
+  return value === true || String(value).toLowerCase() === "true";
+}
+
 function isChatbotEnabled(jid) {
-  if (chatbotStates.get(jid) === true) {
-    return true;
-  }
-
+  if (chatbotStates.get(jid) === true) return true;
   const isGroup = jid.includes("@g.us");
-  if (isGroup && config.CHATBOT_ALL_GROUPS === "true") {
-    return true;
-  }
-
-  if (!isGroup && config.CHATBOT_ALL_DMS === "true") {
-    return true;
-  }
-
+  if (isGroup && isEnabledValue(config.CHATBOT_ALL_GROUPS)) return true;
+  if (!isGroup && isEnabledValue(config.CHATBOT_ALL_DMS)) return true;
   return false;
 }
 
@@ -309,8 +332,8 @@ Module(
 
     if (!input) {
       const isEnabled = isChatbotEnabled(chatJid);
-      const globalGroups = config.CHATBOT_ALL_GROUPS === "true";
-      const globalDMs = config.CHATBOT_ALL_DMS === "true";
+      const globalGroups = isEnabledValue(config.CHATBOT_ALL_GROUPS);
+      const globalDMs = isEnabledValue(config.CHATBOT_ALL_DMS);
       const currentModel = MODEL;
       const contextSize = chatContexts.get(chatJid)?.length || 0;
       const hasApiKey = !!config.GEMINI_API_KEY;
@@ -325,8 +348,8 @@ Module(
         `💬 _Global DMs:_ \`${globalDMs ? "Enabled ✅" : "Disabled ❌"}\`\n` +
         `🤖 _Model:_ \`${currentModel}\`\n` +
         `💭 _Context Messages:_ \`${contextSize}\`\n` +
-        `🎯 _System Prompt:_ \`${globalSystemPrompt.substring(0, 100)}${
-          globalSystemPrompt.length > 100 ? "..." : ""
+        `🎯 _System Prompt:_ \`${getSystemPrompt().substring(0, 100)}${
+          getSystemPrompt().length > 100 ? "..." : ""
         }\`\n\n` +
         (hasApiKey
           ? `*_Commands:_*\n` +
@@ -475,8 +498,8 @@ Module(
       case "status":
         const isEnabled = isChatbotEnabled(chatJid);
         const isEnabledIndividually = chatbotStates.get(chatJid) === true;
-        const globalGroups = config.CHATBOT_ALL_GROUPS === "true";
-        const globalDMs = config.CHATBOT_ALL_DMS === "true";
+        const globalGroups = isEnabledValue(config.CHATBOT_ALL_GROUPS);
+        const globalDMs = isEnabledValue(config.CHATBOT_ALL_DMS);
         const currentModel = MODEL;
         const contextSize = chatContexts.get(chatJid)?.length || 0;
         const isGroup = chatJid.includes("@g.us");
@@ -502,7 +525,7 @@ Module(
           `💬 _Global DMs:_ \`${globalDMs ? "Enabled ✅" : "Disabled ❌"}\`\n` +
           `🤖 _Model:_ \`${currentModel}\`\n` +
           `💭 _Context Messages:_ \`${contextSize}\`\n` +
-          `🎯 _System Prompt:_ \`${globalSystemPrompt}\`\n` +
+          `🎯 _System Prompt:_ \`${getSystemPrompt()}\`\n` +
           `🔑 _API Key:_ \`${
             config.GEMINI_API_KEY ? "Configured ✅" : "Missing ❌"
           }\``;
@@ -641,6 +664,7 @@ Module(
           console.error("Error downloading image:", error);
           return await message.sendReply("❌ Failed to download the image.");
         }
+        if (!imageParts.length) return await message.sendReply("❌ I could not process that image. Please send a JPG or PNG image.");
         if (!prompt) prompt = "What do you see in this image?";
       } else if (message.reply_message.album) {
         try {
@@ -696,10 +720,11 @@ Module(
         },
       ];
 
-      const response = await callGemmaAPI(
+      const response = await callAIAPI(
         apiKey,
         contents,
-        "You are a helpful AI assistant. Respond naturally and directly. Use WhatsApp markdown (*bold*, _italic_, `code`, ```code blocks```, bullets) where appropriate. Keep responses concise and relevant.",
+        getSystemPrompt(),
+        imageParts.length > 0,
       );
 
       const fullText = extractResponseText(response.data);

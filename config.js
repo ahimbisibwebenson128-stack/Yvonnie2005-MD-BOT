@@ -175,7 +175,7 @@ const SESSION = SESSION_STRING.split(",")
 
 const settingsMenu = [
   { title: "PM antispam block", env_var: "PM_ANTISPAM" },
-  //{ title: "Command auto reaction", env_var: "CMD_REACTION" },
+  { title: "Command auto reaction", env_var: "CMD_REACTION" },
   { title: "Auto read all messages", env_var: "READ_MESSAGES" },
   { title: "Auto read command messages", env_var: "READ_COMMAND" },
   { title: "Auto read status updates", env_var: "AUTO_READ_STATUS" },
@@ -346,6 +346,8 @@ Object.defineProperty(config, "loadFromDB", {
     const booleanKeys = [
       ...settingsMenu.map((item) => item.env_var),
       "MANGLISH_CHATBOT",
+      "CHATBOT_ALL_GROUPS",
+      "CHATBOT_ALL_DMS",
     ];
     for (const [key, value] of Object.entries(dbValues)) {
       if (value !== undefined && value !== null) {

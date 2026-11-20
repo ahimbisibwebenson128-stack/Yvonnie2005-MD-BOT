@@ -1,4 +1,4 @@
-# Raganork-MD clean build: audit report
+# YVONNIE2005 clean build: audit report
 
 ## 1. What was sending data to / taking orders from the authors (all removed)
 | Item | What it did | Status |
@@ -43,7 +43,14 @@ Name/owner: YVONNIE2005. Default SUDO/owner: 256746244963. Author's GitHub/Teleg
 - Added `/mascot.png` local asset serving and international phone-number validation before pairing.
 - The dashboard intentionally does not show fake controls, simulated logs, or pretend command buttons.
 
+## 6b. Owner dashboard and pairing portal upgrade
+- The connection portal presents both pairing-code and QR workflows, plus a vertically scrollable FAQ section. QR payloads are returned only from an owner-authenticated endpoint and expire after 20 seconds. The browser draws the QR using a CDN-hosted QR renderer.
+- The owner dashboard has glassmorphism styling, gold lighting, a responsive sidebar, overview cards, editable supported configuration groups, AI readiness, a live command catalogue, owner security notes, and a scrollable FAQ.
+- Dashboard setting writes are restricted to an explicit allowlist and persisted in `BotVariable`; secret keys are never returned in settings responses. Some startup-loaded settings require restart. An authenticated live AI test endpoint sends a small test prompt and returns the responding model without exposing the API key.
+- AI keeps Gemma 4 31B as the text model, normalizes uploaded images to JPEG, uses Gemini 3.5 Flash-Lite for image requests, and retries transient errors before falling back. Google documents Gemini 3.5 Flash-Lite as supporting text and image inputs.
+
 ## 7. Not done / caveats
-- Not run against a real WhatsApp login or with yt-dlp installed in this build environment. JavaScript syntax and static deployment checks pass, but live WhatsApp command execution and YouTube download/search require a deployed service, valid WhatsApp session, and working yt-dlp/network access. No one can honestly certify every command without testing those external dependencies.
+- Not run against a real WhatsApp login or with yt-dlp installed in this build environment. JavaScript syntax and static deployment checks pass, but live WhatsApp command execution, actual QR scanning, pairing-code acceptance, AI provider responses, and YouTube downloads/search still require a deployed service, valid WhatsApp session, valid private API key, quota and working network access. No one can honestly certify every command without testing those external dependencies.
 - Postgres connections use `rejectUnauthorized:false` (original behaviour, weakens TLS verification). SQLite default is unaffected.
+- QR display requires the browser to load the QRCode.js renderer from cdnjs; pairing-code mode does not depend on that renderer.
 - Branding left alone: name, "Sourav K" credit, sticker-pack links to github.com/souravkl11, t.me/raganork_in. GPL-3.0 requires keeping the license and copyright notices.

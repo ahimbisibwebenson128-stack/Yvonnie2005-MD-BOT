@@ -339,6 +339,8 @@ class WhatsAppBot {
     this.stopped = false;
     this.connectionState = "starting";
     this.qrReady = false;
+    this.latestQr = null;
+    this.latestQrAt = 0;
     this.pairingRequest = null;
     this.pairingNumber = null;
 
@@ -416,6 +418,7 @@ class WhatsAppBot {
       ready: Boolean(this.sock && this.authState && this.qrReady && !this.authState.creds.registered),
       linked: Boolean(this.authState?.creds?.registered),
       pairingInProgress: Boolean(this.pairingRequest),
+      qrAvailable: Boolean(this.latestQr && Date.now() - this.latestQrAt < 20000),
     };
   }
 
@@ -584,6 +587,8 @@ class WhatsAppBot {
       const { connection, lastDisconnect, qr } = update;
       if (connection) this.connectionState = connection;
       if (qr) {
+        this.latestQr = qr;
+        this.latestQrAt = Date.now();
         this.qrReady = true;
         logger.info(
           { session: this.sessionId },
@@ -609,6 +614,9 @@ class WhatsAppBot {
       const sessionLogger = logger.child({ session: this.sessionId });
 
       if (connection === "close") {
+        this.latestQr = null;
+        this.latestQrAt = 0;
+        this.qrReady = false;
         const statusCode = lastDisconnect?.error?.output?.statusCode;
         const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
         sessionLogger.info(
@@ -657,6 +665,8 @@ class WhatsAppBot {
       } else if (connection === "open") {
         this.connectionState = "open";
         this.qrReady = false;
+        this.latestQr = null;
+        this.latestQrAt = 0;
         this.pairingRequest = null;
         this.pairingNumber = null;
         sessionLogger.info(

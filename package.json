@@ -1,6 +1,6 @@
 {
   "name": "yvonnie2005-md-bot",
-  "version": "7.0.0",
+  "version": "7.2.0",
   "description": "A multi functional WhatsApp bot by YVONNIE2005.",
   "main": "index.js",
   "type": "commonjs",

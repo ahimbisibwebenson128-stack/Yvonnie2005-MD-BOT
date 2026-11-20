@@ -30,9 +30,9 @@ npm install
 
 ## Connect WhatsApp
 
-### Pairing code through the web portal
+### Pairing code or QR through the web portal
 
-Deploy the bot on a persistent Node.js host such as Render, configure `PAIRING_API_KEY`, and open the public portal. Wait for the portal to report that the bot is ready, then request exactly one code for the configured owner number. The pairing connection uses a standard Windows/Chrome browser identity because WhatsApp validates the companion platform display; the public portal remains branded YVONNIE2005. See [DEPLOYMENT.md](DEPLOYMENT.md).
+Deploy the bot on a persistent Node.js host such as Render, configure `PAIRING_API_KEY`, and open the public portal. The portal provides both a one-time pairing code and a QR display. QR data is returned only to a request authenticated with the owner key. Wait for the portal to report that the bot is ready, then complete one linking method. The pairing connection uses a standard Windows/Chrome browser identity because WhatsApp validates the companion platform display; the public portal remains branded YVONNIE2005. See [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ### QR code (terminal fallback)
 
@@ -117,3 +117,19 @@ npm run audit:hosts
 ## License
 
 Licensed under **GPL-3.0-or-later**. See [LICENSE](LICENSE).
+
+## Owner dashboard and AI
+
+- The owner dashboard saves supported settings to the bot database. Changes to startup-loaded command prefixes and bot mode may require a service restart.
+- The chatbot uses `gemma-4-31b-it` for text and retries with `gemini-3.5-flash-lite` for image input or transient primary-model failures. Both require a valid `GEMINI_API_KEY`.
+- The owner dashboard includes a **Run live AI test** action that sends a small authenticated test prompt to Gemini and reports the actual model used. It does not reveal the API key.
+- AI availability still depends on the API key's project permissions, quota, and network access. A configured key is not proof that a live model request will succeed.
+- The portal loads the QR renderer from a CDN; internet access is required in the browser to draw the QR image. Pairing-code mode remains available independently.
+
+Run the static checks before release:
+
+```bash
+npm run check
+npm run check:deployment
+npm run audit:hosts
+```

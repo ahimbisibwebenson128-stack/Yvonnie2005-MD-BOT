@@ -10,6 +10,7 @@ suppressLibsignalLogs();
 
 const { initializeDatabase } = require("./core/database");
 const { BotManager } = require("./core/manager");
+const { BotVariable } = require("./core/database");
 const config = require("./config");
 const { SESSION, logger } = config;
 const http = require("http");
@@ -84,6 +85,33 @@ async function main() {
       res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
       res.end(JSON.stringify(body));
     };
+    const ownerAuthorized = (req) => {
+      const expected = process.env.PAIRING_API_KEY || "";
+      const supplied = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+      const a = Buffer.from(supplied);
+      const b = Buffer.from(expected);
+      return Boolean(expected && supplied && a.length === b.length && crypto.timingSafeEqual(a, b));
+    };
+    const settingGroups = {
+      bot: ["BOT_NAME", "BOT_INFO", "HANDLERS", "MODE", "ALIVE", "LANGUAGE", "STICKER_DATA", "SUPPORT_GROUP", "MULTI_HANDLERS"],
+      automation: ["READ_MESSAGES", "READ_COMMAND", "AUTO_READ_STATUS", "ALWAYS_ONLINE", "DISABLE_START_MESSAGE", "CMD_REACTION", "MANGLISH_CHATBOT", "PMB_VAR", "AUTOMUTE_MSG", "AUTOUNMUTE_MSG"],
+      safety: ["PM_ANTISPAM", "ADMIN_ACCESS", "REJECT_CALLS", "DIS_PM", "BLOCK_CHAT", "WARN", "ANTILINK_WARN", "ANTISPAM_COUNT", "ALLOWED_CALLS", "CALL_REJECT_MESSAGE", "ANTIWORD_WARN", "PMB"],
+      ai: ["CHATBOT_ALL_GROUPS", "CHATBOT_ALL_DMS", "CHATBOT_SYSTEM_PROMPT"],
+    };
+    const allowedSettings = new Set(Object.values(settingGroups).flat());
+    const booleanSettings = new Set(["READ_MESSAGES", "READ_COMMAND", "AUTO_READ_STATUS", "ALWAYS_ONLINE", "DISABLE_START_MESSAGE", "CMD_REACTION", "PM_ANTISPAM", "ADMIN_ACCESS", "REJECT_CALLS", "DIS_PM", "MANGLISH_CHATBOT", "PMB_VAR", "MULTI_HANDLERS", "CHATBOT_ALL_GROUPS", "CHATBOT_ALL_DMS"]);
+    const settingLabels = {
+      BOT_NAME: "Bot display name", BOT_INFO: "Bot status information", HANDLERS: "Command prefixes", MODE: "Bot mode", ALIVE: "Alive response", LANGUAGE: "Bot language", STICKER_DATA: "Sticker pack name", SUPPORT_GROUP: "Support group link",
+      MULTI_HANDLERS: "Accept commands with or without prefix", READ_MESSAGES: "Auto-read messages", READ_COMMAND: "Auto-read commands", AUTO_READ_STATUS: "Auto-read status updates", ALWAYS_ONLINE: "Always appear online", DISABLE_START_MESSAGE: "Disable startup message", CMD_REACTION: "React to commands", MANGLISH_CHATBOT: "Manglish translation assistant", PMB_VAR: "Private-message auto blocker", AUTOMUTE_MSG: "Auto-mute message", AUTOUNMUTE_MSG: "Auto-unmute message",
+      CHATBOT_ALL_GROUPS: "Enable AI in all groups", CHATBOT_ALL_DMS: "Enable AI in all private chats", CHATBOT_SYSTEM_PROMPT: "AI assistant system instructions",
+      PM_ANTISPAM: "Private-message anti-spam", ADMIN_ACCESS: "Allow group-admin commands", REJECT_CALLS: "Reject incoming calls", DIS_PM: "Disable private chats", BLOCK_CHAT: "Blocked chat IDs", WARN: "Warning limit", ANTILINK_WARN: "Anti-link warning threshold", ANTISPAM_COUNT: "Anti-spam message threshold", ALLOWED_CALLS: "Allowed caller numbers", CALL_REJECT_MESSAGE: "Call rejection message", ANTIWORD_WARN: "Blocked words", PMB: "Private-message blocker response",
+    };
+    const readBody = (req, max = 8192) => new Promise((resolve, reject) => {
+      let raw = "";
+      req.on("data", chunk => { raw += chunk; if (raw.length > max) { reject(new Error("Request is too large.")); req.destroy(); } });
+      req.on("end", () => { try { resolve(JSON.parse(raw || "{}")); } catch (_) { reject(new Error("Invalid JSON request.")); } });
+      req.on("error", reject);
+    });
     const server = http.createServer(async (req, res) => {
       const pathname = new URL(req.url, `http://${req.headers.host || "localhost"}`).pathname;
       // Serve the public pairing portal, owner control centre, and mascot from local files.
@@ -106,6 +134,86 @@ async function main() {
         const b = Buffer.from(expected);
         const valid = Boolean(expected && supplied && a.length === b.length && crypto.timingSafeEqual(a, b));
         return sendJson(res, valid ? 200 : 401, valid ? { ok: true } : { error: "Owner key is incorrect or not configured." });
+      }
+      if (pathname.startsWith("/api/admin/") && pathname !== "/api/admin/verify" && !ownerAuthorized(req)) {
+        return sendJson(res, 401, { error: "Owner authentication required." });
+      }
+      if (req.method === "GET" && pathname === "/api/admin/settings") {
+        const values = {};
+        for (const key of allowedSettings) values[key] = config[key] ?? "";
+        return sendJson(res, 200, {
+          values,
+          groups: Object.fromEntries(Object.entries(settingGroups).map(([group, keys]) => [group, keys.map(key => ({ key, label: settingLabels[key], type: booleanSettings.has(key) ? "boolean" : "text", value: values[key] }))])),
+          ai: { provider: "Google Gemini", model: "gemini-3.8-flash", fallbackModel: "gemini-3.5-flash-lite", configured: Boolean(config.GEMINI_API_KEY), control: "AI settings are saved to the bot database; API keys remain private." },
+          identity: { name: config.BOT_NAME || "YVONNIE2005", version: require("./package.json").version, ownerConfigured: Boolean(process.env.SUDO) },
+        });
+      }
+      if (req.method === "POST" && pathname === "/api/admin/settings") {
+        try {
+          const body = await readBody(req);
+          const key = String(body.key || "");
+          if (!allowedSettings.has(key)) return sendJson(res, 400, { error: "This setting is not editable from the dashboard." });
+          let value = body.value;
+          if (booleanSettings.has(key)) value = value === true || value === "true" || value === 1;
+          else {
+            value = String(value ?? "").trim();
+            if (value.length > 2000) return sendJson(res, 400, { error: "Setting value is too long." });
+            if (key === "MODE" && !["private", "public"].includes(value)) return sendJson(res, 400, { error: "Mode must be private or public." });
+            if (key === "HANDLERS" && (!value || value.length > 8)) return sendJson(res, 400, { error: "Use one or more short command prefix characters." });
+            if (["WARN", "ANTILINK_WARN"].includes(key) && value && (!/^\d{1,2}$/.test(value) || Number(value) < 1 || Number(value) > 20)) return sendJson(res, 400, { error: "Enter a number from 1 to 20." });
+          }
+          await BotVariable.upsert({ key, value: String(value) });
+          config[key] = value;
+          return sendJson(res, 200, { ok: true, key, value, note: ["HANDLERS", "MODE"].includes(key) ? "Saved. Some command routing changes may require a service restart." : "Saved to the bot database." });
+        } catch (error) { return sendJson(res, 400, { error: error.message }); }
+      }
+      if (req.method === "POST" && pathname === "/api/admin/ai-test") {
+        const apiKey = config.GEMINI_API_KEY;
+        if (!apiKey) return sendJson(res, 400, { error: "GEMINI_API_KEY is not configured. Add it to the private Render environment or use the owner .setvar command." });
+        const prompt = { contents: [{ role: "user", parts: [{ text: "Reply with exactly: YVONNIE2005 AI connection test successful." }] }], generationConfig: { maxOutputTokens: 40, temperature: 0 } };
+        const testModel = async (model) => {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 20000);
+          try {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+              body: JSON.stringify(prompt),
+              signal: controller.signal,
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              const error = new Error(data?.error?.message || `Google AI returned HTTP ${response.status}`);
+              error.status = response.status;
+              throw error;
+            }
+            const answer = (data?.candidates?.[0]?.content?.parts || []).map(part => part.text || "").join("").trim();
+            if (!answer) throw new Error("Google AI returned no text. Check model access and API quota.");
+            return { model, answer };
+          } finally { clearTimeout(timeout); }
+        };
+        try {
+          let result;
+          try { result = await testModel("gemini-3.8-flash"); }
+          catch (primaryError) {
+            const transient = [408, 429, 500, 502, 503, 504].includes(primaryError.status) || primaryError.name === "AbortError" || !primaryError.status;
+            if (!transient) throw primaryError;
+            result = await testModel("gemini-3.5-flash-lite");
+          }
+          return sendJson(res, 200, { ok: true, model: result.model, answer: result.answer.slice(0, 180) });
+        } catch (error) {
+          return sendJson(res, 502, { error: error.name === "AbortError" ? "AI test timed out after 20 seconds." : String(error.message || "AI provider request failed.").slice(0, 500) });
+        }
+      }
+      if (req.method === "GET" && pathname === "/api/admin/commands") {
+        const commands = require("./main").commands || [];
+        const rows = commands.filter(c => c && c.pattern).map(c => ({ command: String(c.pattern.source || "").replace(/^\^/, "").slice(0, 70), description: c.desc || "No description provided", usage: c.usage || "", fromMe: Boolean(c.fromMe) }));
+        return sendJson(res, 200, { count: rows.length, commands: rows });
+      }
+      if (req.method === "GET" && pathname === "/api/admin/qr") {
+        const bot = botManager.getBot(SESSION[0]);
+        if (!bot?.latestQr || Date.now() - bot.latestQrAt > 20000) return sendJson(res, 404, { error: "A fresh QR code is not currently available. Wait for the bot to display a new QR." });
+        return sendJson(res, 200, { qr: bot.latestQr, generatedAt: bot.latestQrAt, expiresInSeconds: Math.max(0, Math.floor((20000 - (Date.now() - bot.latestQrAt)) / 1000)) });
       }
       if (req.method === "GET" && pathname === "/api/status") {
         const bot = botManager.getBot(SESSION[0]);

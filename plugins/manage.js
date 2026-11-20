@@ -807,11 +807,14 @@ Module(
     use: "group",
   },
   async (message, match) => {
-    let adminAccesValidated = ADMIN_ACCESS
-      ? await isAdmin(message, message.sender)
-      : false;
+    // The owner is trusted directly; do not fetch group metadata for the owner
+    // before showing help/status. This avoids breaking .antilink when WA metadata
+    // is temporarily incomplete or unavailable.
+    let adminAccesValidated = message.fromOwner
+      ? true
+      : (ADMIN_ACCESS ? await isAdmin(message, message.sender) : false);
 
-    if (!(message.fromOwner || adminAccesValidated)) return;
+    if (!adminAccesValidated) return;
 
     const input = match[1] ? match[1].toLowerCase().trim() : "";
     const args = input.split(" ");
@@ -824,7 +827,7 @@ Module(
       switch (command) {
         case "on":
         case "enable":
-          if (!(await isAdmin(message))) {
+          if (!message.fromOwner && !(await isAdmin(message))) {
             return await message.sendReply("_I'm not an admin!_");
           }
 
@@ -870,7 +873,7 @@ Module(
             );
           }
 
-          if (!(await isAdmin(message))) {
+          if (!message.fromOwner && !(await isAdmin(message))) {
             return await message.sendReply("_I'm not an admin!_");
           }
 
@@ -1063,8 +1066,9 @@ Module(
       }
     } catch (error) {
       console.error("Antilink error:", error);
+      const detail = String(error?.message || "Unknown error").replace(/[\r\n]+/g, " ").slice(0, 180);
       return await message.sendReply(
-        "_An error occurred while updating antilink settings._"
+        `_Antilink update failed: ${detail}_`
       );
     }
   }
